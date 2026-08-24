@@ -6,10 +6,14 @@ FROM ${BUILD_FROM}
 # hadolint ignore=DL3018
 RUN apk add --no-cache python3 py3-aiohttp
 
-# Bundled pdf.js viewer. The "legacy" flavour is the one with a documented
-# browser floor (Safari 18+), which matters for the iOS companion app.
+# Bundled pdf.js viewer. "dist" is the build Mozilla ships for current
+# browsers and the one they actually test on; "legacy-dist" is the same
+# viewer transpiled and polyfilled for older ones. Legacy was the first
+# choice here only because its browser floor is written down, but a current
+# iPhone is far above that floor and gains nothing from the polyfills.
+# Switch back to legacy-dist if the viewer ever has to run on an old device.
 ARG PDFJS_VERSION=6.2.108
-ARG PDFJS_FLAVOR=legacy-dist
+ARG PDFJS_FLAVOR=dist
 
 ADD "https://github.com/mozilla/pdf.js/releases/download/v${PDFJS_VERSION}/pdfjs-${PDFJS_VERSION}-${PDFJS_FLAVOR}.zip" /tmp/pdfjs.zip
 RUN apk add --no-cache --virtual .pdfjs-deps unzip \

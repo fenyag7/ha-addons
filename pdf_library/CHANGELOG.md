@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+- Documents can be renamed from the document menu. The cover is renamed
+  with them, so it does not get orphaned.
+- Fixed the upload bar being on screen permanently, and the "delete
+  collection" button showing while creating a new one: an author display
+  rule beats the browser's own `[hidden]` rule, so the hidden attribute
+  the scripts set was doing nothing.
+- The bundled pdf.js is now the build Mozilla ships for current browsers
+  rather than the transpiled one meant for old ones.
+
 ## 0.6.2
 
 - Every response now carries `Cache-Control: no-cache`. Without it the iOS

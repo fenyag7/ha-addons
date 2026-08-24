@@ -44,6 +44,11 @@
 
 * { box-sizing: border-box; }
 
+/* An author rule always beats the browser's own [hidden] { display: none },
+   so any element given a display here would ignore the hidden attribute the
+   scripts toggle. This puts the attribute back in charge for all of them. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {

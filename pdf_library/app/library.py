@@ -385,6 +385,43 @@ class Library:
         path.unlink()
         self.drop_covers(cid, path.name[: -len(DOC_EXTENSION)])
 
+    def rename_item(self, cid: str, file_name: str, new_title: str) -> str:
+        """Rename a document, and its cover along with it.
+
+        The title is the file name without the extension, so renaming is the
+        only way to retitle a document. The cover follows because it is
+        matched by stem: leaving it behind would silently orphan it.
+        """
+        source = self.doc_path(cid, file_name)
+        if not source.is_file():
+            raise LibraryError("not_found", file_name, 404)
+
+        new_title = unicodedata.normalize("NFC", (new_title or "").strip())
+        # Typing the extension is a natural thing to do; do not end up with
+        # "Rules.pdf.pdf" because of it.
+        if new_title.lower().endswith(DOC_EXTENSION):
+            new_title = new_title[: -len(DOC_EXTENSION)].strip()
+        if not new_title:
+            raise LibraryError("title_required", file_name, 400)
+
+        target = self.doc_path(cid, new_title + DOC_EXTENSION)
+        if target == source:
+            return source.name
+        if target.exists():
+            raise LibraryError("file_exists", target.name, 409)
+
+        old_stem = source.name[: -len(DOC_EXTENSION)]
+        cover = self._cover_index(cid).get(old_stem.casefold())
+        # The document moves first: if the cover rename then fails, the
+        # library is merely missing a cover, not missing a document.
+        source.rename(target)
+        if cover:
+            extension = os.path.splitext(cover)[1]
+            self.cover_path(cid, cover).rename(
+                self.cover_path(cid, new_title + extension)
+            )
+        return target.name
+
     def drop_covers(self, cid: str, stem: str) -> None:
         existing = self._cover_index(cid).get(stem.casefold())
         if existing:

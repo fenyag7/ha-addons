@@ -242,6 +242,16 @@ async def api_upload_cover(request: web.Request) -> web.Response:
     raise LibraryError("file_required", "", 400)
 
 
+async def api_rename_item(request: web.Request) -> web.Response:
+    library = request.app[LIBRARY_KEY]
+    cid = request.match_info["cid"]
+    name = request.match_info["name"]
+    body = await read_json(request)
+    renamed = library.rename_item(cid, name, body.get("name", ""))
+    _LOGGER.info("Renamed %s/%s to %s", cid, name, renamed)
+    return web.json_response({"file": renamed, "name": renamed[: -len(DOC_EXTENSION)]})
+
+
 async def api_delete_item(request: web.Request) -> web.Response:
     library = request.app[LIBRARY_KEY]
     cid = request.match_info["cid"]
@@ -303,6 +313,7 @@ def build_app(library: Library, max_upload_bytes: int) -> web.Application:
     app.router.add_delete("/api/collections/{cid}", api_delete_collection)
     app.router.add_get("/api/collections/{cid}/items", api_items)
     app.router.add_post("/api/collections/{cid}/items", api_upload)
+    app.router.add_patch("/api/collections/{cid}/items/{name}", api_rename_item)
     app.router.add_delete("/api/collections/{cid}/items/{name}", api_delete_item)
     app.router.add_put("/api/collections/{cid}/items/{name}/cover", api_upload_cover)
     app.router.add_get("/docs/{cid}/{name}", serve_doc)

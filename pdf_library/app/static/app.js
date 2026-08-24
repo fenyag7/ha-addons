@@ -62,6 +62,7 @@
     viewerFrame: id("viewer-frame"),
     docMenu: id("doc-menu"),
     docMenuTitle: id("doc-menu-title"),
+    docRename: id("doc-rename"),
     docCover: id("doc-cover"),
     docDelete: id("doc-delete"),
     docCancel: id("doc-cancel"),
@@ -530,6 +531,20 @@
     dom.docMenu.showModal();
   }
 
+  async function renameDocument(entry) {
+    const next = window.prompt(t("rename_prompt"), entry.name);
+    if (next === null || next.trim() === "" || next === entry.name) return;
+    try {
+      await api(
+        `api/collections/${encodeURIComponent(entry.cid)}/items/${encodeURIComponent(entry.file)}`,
+        { ...asJson({ name: next }), method: "PATCH" }
+      );
+    } catch (error) {
+      notice(tError(error.code));
+    }
+    await refresh();
+  }
+
   async function deleteDocument(entry) {
     if (!window.confirm(t("delete_confirm", entry.name))) return;
     try {
@@ -691,6 +706,7 @@
     dom.search.setAttribute("aria-label", t("search_placeholder"));
     dom.add.textContent = t("add");
     dom.viewerClose.textContent = t("close");
+    dom.docRename.textContent = t("rename");
     dom.docCover.textContent = t("upload_cover");
     dom.docDelete.textContent = t("delete");
     dom.docCancel.textContent = t("cancel");
@@ -750,6 +766,11 @@
   });
 
   dom.docCancel.addEventListener("click", () => dom.docMenu.close());
+  dom.docRename.addEventListener("click", async () => {
+    const entry = state.menuItem;
+    dom.docMenu.close();
+    if (entry) await renameDocument(entry);
+  });
   dom.docCover.addEventListener("click", () => {
     dom.docMenu.close();
     dom.coverInput.click();
