@@ -12,11 +12,58 @@
 <header class="topbar">
   <div class="toolbar">
     <input id="search" class="search" type="search" autocomplete="off" spellcheck="false">
+    <button type="button" id="add" class="button button-primary"></button>
   </div>
   <nav id="tabs" class="tabs"></nav>
 </header>
+
 <p id="notice" class="notice" role="status" hidden></p>
+<div id="progress" class="progress" hidden>
+  <span id="progress-label" class="progress-label"></span>
+  <progress id="progress-bar" max="1" value="0"></progress>
+</div>
+
 <main id="grid" class="grid"></main>
+
+<!-- The file pickers. On iOS these open the system browser, with iCloud
+     Drive and Downloads in reach. -->
+<input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="cover-input" accept="image/jpeg,image/png,image/webp,image/avif" hidden>
+
+<!-- An overlay, not a page of its own: inside the companion app's web view
+     there is no back button to come back with. -->
+<dialog id="viewer" class="viewer">
+  <div class="viewer-bar">
+    <h2 id="viewer-title" class="viewer-title"></h2>
+    <button type="button" id="viewer-close" class="button button-primary"></button>
+  </div>
+  <iframe id="viewer-frame" class="viewer-frame" title=""></iframe>
+</dialog>
+
+<dialog id="doc-menu" class="sheet">
+  <h2 id="doc-menu-title" class="sheet-title"></h2>
+  <button type="button" id="doc-cover" class="sheet-item"></button>
+  <button type="button" id="doc-delete" class="sheet-item sheet-item-danger"></button>
+  <button type="button" id="doc-cancel" class="sheet-item sheet-item-quiet"></button>
+</dialog>
+
+<dialog id="collection-dialog" class="sheet">
+  <form id="collection-form" method="dialog">
+    <h2 id="collection-dialog-title" class="sheet-title"></h2>
+    <label class="field">
+      <span id="collection-title-label" class="field-label"></span>
+      <input type="text" id="collection-title" class="field-input" maxlength="60" required>
+    </label>
+    <span id="collection-icon-label" class="field-label"></span>
+    <div id="icon-picker" class="icon-picker" role="radiogroup"></div>
+    <div class="sheet-actions">
+      <button type="button" id="collection-cancel" class="button"></button>
+      <button type="submit" id="collection-save" class="button button-primary"></button>
+    </div>
+    <button type="button" id="collection-delete" class="sheet-item sheet-item-danger"></button>
+  </form>
+</dialog>
+
 <script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>

@@ -8,7 +8,7 @@
   const { t, tError, setLanguage, locale } = window.I18N;
 
   // Material Design Icons (Pictogrammers, Apache 2.0), path data only.
-  // Ten of them, embedded: no icon font to load and nothing to fetch.
+  // Twelve of them, embedded: no icon font to load and nothing to fetch.
   const ICONS = {
     "bookshelf": "M9 3V18H12V3H9M12 5L16 18L19 17L15 4L12 5M5 5V18H8V5H5M3 19V21H21V19H3Z",
     "dice-multiple": "M19.78,3H11.22C10.55,3 10,3.55 10,4.22V8H16V14H19.78C20.45,14 21,13.45 21,12.78V4.22C21,3.55 20.45,3 19.78,3M12.44,6.67C11.76,6.67 11.21,6.12 11.21,5.44C11.21,4.76 11.76,4.21 12.44,4.21A1.23,1.23 0 0,1 13.67,5.44C13.67,6.12 13.12,6.67 12.44,6.67M18.56,12.78C17.88,12.79 17.33,12.24 17.32,11.56C17.31,10.88 17.86,10.33 18.54,10.32C19.22,10.31 19.77,10.86 19.78,11.56C19.77,12.23 19.23,12.77 18.56,12.78M18.56,6.67C17.88,6.68 17.33,6.13 17.32,5.45C17.31,4.77 17.86,4.22 18.54,4.21C19.22,4.2 19.77,4.75 19.78,5.44C19.78,6.12 19.24,6.66 18.56,6.67M4.22,10H12.78A1.22,1.22 0 0,1 14,11.22V19.78C14,20.45 13.45,21 12.78,21H4.22C3.55,21 3,20.45 3,19.78V11.22C3,10.55 3.55,10 4.22,10M8.5,14.28C7.83,14.28 7.28,14.83 7.28,15.5C7.28,16.17 7.83,16.72 8.5,16.72C9.17,16.72 9.72,16.17 9.72,15.5A1.22,1.22 0 0,0 8.5,14.28M5.44,11.22C4.77,11.22 4.22,11.77 4.22,12.44A1.22,1.22 0 0,0 5.44,13.66C6.11,13.66 6.66,13.11 6.66,12.44V12.44C6.66,11.77 6.11,11.22 5.44,11.22M11.55,17.33C10.88,17.33 10.33,17.88 10.33,18.55C10.33,19.22 10.88,19.77 11.55,19.77A1.22,1.22 0 0,0 12.77,18.55H12.77C12.77,17.88 12.23,17.34 11.56,17.33H11.55Z",
@@ -23,41 +23,86 @@
     "camera-outline": "M20,4H16.83L15,2H9L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4M20,18H4V6H8.05L9.88,4H14.12L15.95,6H20V18M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15Z",
     "folder-outline": "M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"
   };
+  const ICON_NAMES = Object.keys(ICONS);
   const FALLBACK_ICON = "folder-outline";
+  const PLUS_PATH = "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";
+
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_SLOP = 10;
 
   const state = {
     collections: [],
     activeId: null,
     items: [],
-    query: ""
+    query: "",
+    maxUploadBytes: 100 * 1024 * 1024,
+    // Built lazily the first time someone searches, dropped on any change.
+    searchIndex: null,
+    menuItem: null,
+    editing: null,
+    pageTimer: null,
+    viewing: null
   };
 
+  const id = (name) => document.getElementById(name);
   const dom = {
-    search: document.getElementById("search"),
-    tabs: document.getElementById("tabs"),
-    grid: document.getElementById("grid"),
-    notice: document.getElementById("notice")
+    search: id("search"),
+    add: id("add"),
+    tabs: id("tabs"),
+    grid: id("grid"),
+    notice: id("notice"),
+    progress: id("progress"),
+    progressLabel: id("progress-label"),
+    progressBar: id("progress-bar"),
+    fileInput: id("file-input"),
+    coverInput: id("cover-input"),
+    viewer: id("viewer"),
+    viewerTitle: id("viewer-title"),
+    viewerClose: id("viewer-close"),
+    viewerFrame: id("viewer-frame"),
+    docMenu: id("doc-menu"),
+    docMenuTitle: id("doc-menu-title"),
+    docCover: id("doc-cover"),
+    docDelete: id("doc-delete"),
+    docCancel: id("doc-cancel"),
+    collectionDialog: id("collection-dialog"),
+    collectionForm: id("collection-form"),
+    collectionDialogTitle: id("collection-dialog-title"),
+    collectionTitleLabel: id("collection-title-label"),
+    collectionTitle: id("collection-title"),
+    collectionIconLabel: id("collection-icon-label"),
+    iconPicker: id("icon-picker"),
+    collectionCancel: id("collection-cancel"),
+    collectionSave: id("collection-save"),
+    collectionDelete: id("collection-delete")
   };
 
   // -- helpers --------------------------------------------------------
 
-  async function api(path) {
+  async function api(path, options) {
     let response;
     try {
-      response = await fetch(path, { headers: { Accept: "application/json" } });
+      response = await fetch(path, options);
     } catch (error) {
       throw { code: "network", detail: String(error) };
     }
-    let payload = null;
+    if (response.status === 204) return {};
+    let payload;
     try {
       payload = await response.json();
     } catch (error) {
       // Not JSON means the request never reached the add-on.
       throw { code: "network", detail: `${response.status} ${response.url}` };
     }
-    if (!response.ok) throw { code: payload.error, detail: payload.detail };
+    if (!response.ok) throw { code: payload.error, detail: payload.detail, status: response.status };
     return payload;
   }
+
+  const asJson = (body) => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
 
   function formatSize(bytes) {
     const units = ["unit_kb", "unit_mb", "unit_gb"];
@@ -89,14 +134,14 @@
     return hash;
   }
 
-  function icon(name) {
+  function icon(name, path) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
     svg.classList.add("icon");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", ICONS[name] || ICONS[FALLBACK_ICON]);
-    svg.appendChild(path);
+    const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shape.setAttribute("d", path || ICONS[name] || ICONS[FALLBACK_ICON]);
+    svg.appendChild(shape);
     return svg;
   }
 
@@ -105,14 +150,64 @@
     dom.notice.hidden = !message;
   }
 
-  function placeholder(container, title) {
-    const box = document.createElement("div");
-    box.className = "cover cover-placeholder";
-    box.style.setProperty("--tile-hue", hueOf(title));
-    const label = document.createElement("span");
-    label.textContent = title;
-    box.appendChild(label);
-    container.replaceChildren(box);
+  function progress(label, fraction) {
+    if (label === null) {
+      dom.progress.hidden = true;
+      return;
+    }
+    dom.progress.hidden = false;
+    dom.progressLabel.textContent = label;
+    dom.progressBar.value = fraction;
+  }
+
+  // A long press is how a tile and a tab give up their menu. Any real
+  // movement cancels it, so scrolling never opens anything.
+  //
+  // The press leaves a mark on the element rather than trying to swallow the
+  // click that follows: listeners on the element the event targets run in
+  // registration order, capture flag or not, so ordering is not something to
+  // rely on here. The mark is cleared when the next gesture starts, which
+  // bounds it to exactly one click.
+  function onLongPress(element, handler) {
+    let timer = null;
+    let origin = null;
+
+    const stop = () => {
+      window.clearTimeout(timer);
+      timer = null;
+      origin = null;
+    };
+
+    element.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      element.dataset.longPressed = "";
+      origin = { x: event.clientX, y: event.clientY };
+      timer = window.setTimeout(() => {
+        timer = null;
+        element.dataset.longPressed = "1";
+        handler();
+      }, LONG_PRESS_MS);
+    });
+    element.addEventListener("pointermove", (event) => {
+      if (!origin) return;
+      if (
+        Math.abs(event.clientX - origin.x) > LONG_PRESS_SLOP ||
+        Math.abs(event.clientY - origin.y) > LONG_PRESS_SLOP
+      ) {
+        stop();
+      }
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((name) =>
+      element.addEventListener(name, stop)
+    );
+    element.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      handler();
+    });
+  }
+
+  function wasLongPress(element) {
+    return element.dataset.longPressed === "1";
   }
 
   // -- rendering ------------------------------------------------------
@@ -130,49 +225,85 @@
       }
       button.appendChild(icon(collection.icon));
       const title = document.createElement("span");
-      title.className = "tab-title";
       title.textContent = collection.title;
       button.appendChild(title);
       const count = document.createElement("span");
       count.className = "tab-count";
       count.textContent = collection.count;
       button.appendChild(count);
-      button.addEventListener("click", () => selectCollection(collection.id));
+      button.addEventListener("click", () => {
+        if (wasLongPress(button)) return;
+        selectCollection(collection.id);
+      });
+      onLongPress(button, () => openCollectionDialog(collection));
       dom.tabs.appendChild(button);
     });
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "tab tab-add";
+    add.setAttribute("aria-label", t("add_collection"));
+    add.appendChild(icon(null, PLUS_PATH));
+    add.addEventListener("click", () => openCollectionDialog(null));
+    dom.tabs.appendChild(add);
   }
 
-  function renderTile(item) {
+  function placeholder(container, title) {
+    const box = document.createElement("div");
+    box.className = "cover cover-placeholder";
+    box.style.setProperty("--tile-hue", hueOf(title));
+    const label = document.createElement("span");
+    label.textContent = title;
+    box.appendChild(label);
+    container.replaceChildren(box);
+  }
+
+  function renderTile(entry) {
     const tile = document.createElement("article");
     tile.className = "tile";
 
-    const frame = document.createElement("div");
+    const frame = document.createElement("button");
+    frame.type = "button";
     frame.className = "tile-cover";
-    if (item.cover) {
+    frame.setAttribute("aria-label", `${t("open_document")}: ${entry.name}`);
+    frame.addEventListener("click", () => {
+      if (wasLongPress(frame)) return;
+      openViewer(entry);
+    });
+    onLongPress(frame, () => openDocMenu(entry));
+
+    if (entry.cover) {
       const image = document.createElement("img");
       image.className = "cover";
       image.loading = "lazy";
       image.alt = "";
-      image.src = `covers/${encodeURIComponent(state.activeId)}/${encodeURIComponent(item.cover)}`;
+      image.src = `covers/${encodeURIComponent(entry.cid)}/${encodeURIComponent(entry.cover)}`;
       // A cover deleted between the listing and the load must not leave a
       // broken image behind: fall back to the drawn one.
-      image.addEventListener("error", () => placeholder(frame, item.name));
+      image.addEventListener("error", () => placeholder(frame, entry.name));
       frame.appendChild(image);
     } else {
-      placeholder(frame, item.name);
+      placeholder(frame, entry.name);
     }
     tile.appendChild(frame);
 
     const title = document.createElement("h2");
     title.className = "tile-title";
-    title.textContent = item.name;
+    title.textContent = entry.name;
     tile.appendChild(title);
 
     const meta = document.createElement("p");
     meta.className = "tile-meta";
-    meta.textContent = formatSize(item.size_bytes);
+    meta.textContent = formatSize(entry.size_bytes);
     tile.appendChild(meta);
 
+    // Only while searching: people remember the title, not the shelf.
+    if (entry.collectionTitle) {
+      const where = document.createElement("p");
+      where.className = "tile-collection";
+      where.textContent = entry.collectionTitle;
+      tile.appendChild(where);
+    }
     return tile;
   }
 
@@ -192,29 +323,316 @@
     dom.grid.replaceChildren(box);
   }
 
+  function renderList(entries, searching) {
+    if (!entries.length) {
+      renderEmpty(searching ? "no_results" : "empty_title", searching ? null : "empty_hint");
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    entries.forEach((entry) => fragment.appendChild(renderTile(entry)));
+    dom.grid.replaceChildren(fragment);
+  }
+
   function renderGrid() {
     if (!state.collections.length) {
       renderEmpty("no_collections", "no_collections_hint");
       return;
     }
-    const query = fold(state.query.trim());
-    const visible = query
-      ? state.items.filter((item) => fold(item.name).includes(query))
-      : state.items;
+    renderList(state.items, false);
+  }
 
-    if (!visible.length) {
-      renderEmpty(query ? "no_results" : "empty_title", query ? null : "empty_hint");
+  // -- search ---------------------------------------------------------
+
+  // An empty query shows the open collection. A real one searches the whole
+  // library, because people remember what a document is called long before
+  // they remember which collection they filed it under.
+  async function loadSearchIndex() {
+    const lists = await Promise.all(
+      state.collections.map(async (collection) => {
+        const data = await api(`api/collections/${encodeURIComponent(collection.id)}/items`);
+        return data.items.map((item) => ({
+          ...item,
+          cid: collection.id,
+          collectionTitle: collection.title
+        }));
+      })
+    );
+    return lists.flat();
+  }
+
+  async function runSearch() {
+    const query = fold(state.query.trim());
+    if (!query) {
+      renderGrid();
       return;
     }
-    const fragment = document.createDocumentFragment();
-    visible.forEach((item) => fragment.appendChild(renderTile(item)));
-    dom.grid.replaceChildren(fragment);
+    if (!state.searchIndex) {
+      renderEmpty("loading", null);
+      try {
+        state.searchIndex = await loadSearchIndex();
+      } catch (error) {
+        notice(tError(error.code));
+        return;
+      }
+      // The field may have been cleared while that was in flight.
+      if (!fold(state.query.trim())) {
+        renderGrid();
+        return;
+      }
+    }
+    const current = fold(state.query.trim());
+    renderList(
+      state.searchIndex
+        .filter((entry) => fold(entry.name).includes(current))
+        .sort((a, b) => fold(a.name).localeCompare(fold(b.name), locale())),
+      true
+    );
+  }
+
+  // -- viewer ---------------------------------------------------------
+
+  const pageKey = (cid, file) => `page:${cid}:${file}`;
+
+  function remembered(cid, file) {
+    try {
+      const value = parseInt(window.localStorage.getItem(pageKey(cid, file)), 10);
+      return value > 1 ? value : null;
+    } catch (error) {
+      return null; // storage can be denied; the viewer still works
+    }
+  }
+
+  function rememberPage() {
+    if (!state.viewing) return;
+    try {
+      const app = dom.viewerFrame.contentWindow.PDFViewerApplication;
+      if (app && app.page > 0) {
+        window.localStorage.setItem(
+          pageKey(state.viewing.cid, state.viewing.file),
+          String(app.page)
+        );
+      }
+    } catch (error) {
+      // Not loaded yet, already torn down, or storage denied. Nothing to do.
+    }
+  }
+
+  // Every hop stays relative. viewer.html sits two levels down, so ../../
+  // climbs back to the add-on root whatever prefix ingress happens to use.
+  // The inner encoding turns the path into a valid URL; the outer one turns
+  // that URL into a valid query value, and pdf.js undoes exactly one layer.
+  function viewerUrl(cid, file) {
+    const target = `../../docs/${encodeURIComponent(cid)}/${encodeURIComponent(file)}`;
+    const page = remembered(cid, file);
+    const hash = page ? `#page=${page}&zoom=page-width` : "#zoom=page-width";
+    return `pdfjs/web/viewer.html?file=${encodeURIComponent(target)}${hash}`;
+  }
+
+  function openViewer(entry) {
+    state.viewing = { cid: entry.cid, file: entry.file };
+    dom.viewerTitle.textContent = entry.name;
+    dom.viewerFrame.title = entry.name;
+    dom.viewerFrame.src = viewerUrl(entry.cid, entry.file);
+    dom.viewer.showModal();
+    // Polling beats hooking the event bus: it survives a pdf.js upgrade and
+    // costs nothing, and a rules PDF is read for minutes at a time.
+    state.pageTimer = window.setInterval(rememberPage, 2000);
+  }
+
+  function closeViewer() {
+    if (dom.viewer.open) dom.viewer.close();
+  }
+
+  // -- upload ---------------------------------------------------------
+
+  function uploadOne(file, cid, overwrite) {
+    return new Promise((resolve) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const query = overwrite ? "?overwrite=1" : "";
+      const request = new XMLHttpRequest();
+      request.open("POST", `api/collections/${encodeURIComponent(cid)}/items${query}`);
+      // fetch() reports no upload progress, which is the whole reason this
+      // one call is not written with it.
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          progress(t("uploading", file.name), event.loaded / event.total);
+        }
+      };
+      request.onload = () => {
+        let payload = {};
+        try {
+          payload = JSON.parse(request.responseText);
+        } catch (error) {
+          resolve({ ok: false, code: "network" });
+          return;
+        }
+        resolve(
+          request.status >= 200 && request.status < 300
+            ? { ok: true, payload }
+            : { ok: false, code: payload.error, status: request.status }
+        );
+      };
+      request.onerror = () => resolve({ ok: false, code: "network" });
+      request.send(form);
+    });
+  }
+
+  async function uploadFiles(files) {
+    const cid = state.activeId;
+    if (!cid) return;
+    notice("");
+    for (const file of files) {
+      if (file.size > state.maxUploadBytes) {
+        notice(`${file.name}: ${tError("upload_too_large")}`);
+        continue;
+      }
+      progress(t("uploading", file.name), 0);
+      let result = await uploadOne(file, cid, false);
+      if (!result.ok && result.code === "file_exists") {
+        if (window.confirm(t("overwrite_confirm", file.name))) {
+          result = await uploadOne(file, cid, true);
+        } else {
+          continue;
+        }
+      }
+      if (!result.ok) notice(`${file.name}: ${tError(result.code)}`);
+    }
+    progress(null);
+    await refresh();
+  }
+
+  async function uploadCover(entry, file) {
+    const form = new FormData();
+    form.append("cover", file, file.name);
+    try {
+      await api(
+        `api/collections/${encodeURIComponent(entry.cid)}/items/` +
+          `${encodeURIComponent(entry.file)}/cover`,
+        { method: "PUT", body: form }
+      );
+      await refresh();
+    } catch (error) {
+      notice(tError(error.code));
+    }
+  }
+
+  // -- document menu --------------------------------------------------
+
+  function openDocMenu(entry) {
+    state.menuItem = entry;
+    dom.docMenuTitle.textContent = entry.name;
+    dom.docMenu.showModal();
+  }
+
+  async function deleteDocument(entry) {
+    if (!window.confirm(t("delete_confirm", entry.name))) return;
+    try {
+      await api(
+        `api/collections/${encodeURIComponent(entry.cid)}/items/${encodeURIComponent(entry.file)}`,
+        { method: "DELETE" }
+      );
+    } catch (error) {
+      notice(tError(error.code));
+    }
+    await refresh();
+  }
+
+  // -- collection dialog ----------------------------------------------
+
+  function selectIcon(name) {
+    dom.iconPicker.querySelectorAll(".icon-choice").forEach((choice) => {
+      const chosen = choice.dataset.icon === name;
+      choice.classList.toggle("is-selected", chosen);
+      choice.setAttribute("aria-checked", String(chosen));
+    });
+  }
+
+  function renderIconPicker(selected) {
+    dom.iconPicker.replaceChildren();
+    ICON_NAMES.forEach((name) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "icon-choice";
+      button.dataset.icon = name;
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-label", name);
+      button.appendChild(icon(name));
+      // Toggling rather than re-rendering, so the button keeps focus.
+      button.addEventListener("click", () => selectIcon(name));
+      dom.iconPicker.appendChild(button);
+    });
+    selectIcon(selected);
+  }
+
+  function chosenIcon() {
+    const selected = dom.iconPicker.querySelector(".is-selected");
+    return selected ? selected.dataset.icon : FALLBACK_ICON;
+  }
+
+  function openCollectionDialog(collection) {
+    state.editing = collection;
+    dom.collectionDialogTitle.textContent = t(
+      collection ? "edit_collection" : "add_collection"
+    );
+    dom.collectionTitle.value = collection ? collection.title : "";
+    renderIconPicker(collection ? collection.icon : ICON_NAMES[0]);
+    dom.collectionDelete.hidden = !collection;
+    dom.collectionDialog.showModal();
+  }
+
+  async function submitCollection() {
+    const title = dom.collectionTitle.value.trim();
+    if (!title) return;
+    const icon = chosenIcon();
+    try {
+      if (state.editing) {
+        await api(`api/collections/${encodeURIComponent(state.editing.id)}`, {
+          ...asJson({ title, icon }),
+          method: "PATCH"
+        });
+      } else {
+        const created = await api("api/collections", asJson({ title, icon }));
+        state.activeId = created.id;
+      }
+    } catch (error) {
+      notice(tError(error.code));
+    }
+    dom.collectionDialog.close();
+    await refresh();
+  }
+
+  async function deleteCollection() {
+    const collection = state.editing;
+    if (!collection) return;
+    if (!window.confirm(t("delete_collection_confirm", collection.title))) return;
+    try {
+      await api(`api/collections/${encodeURIComponent(collection.id)}`, { method: "DELETE" });
+    } catch (error) {
+      if (error.code === "collection_not_empty") {
+        if (!window.confirm(t("delete_collection_force", collection.title))) return;
+        try {
+          await api(`api/collections/${encodeURIComponent(collection.id)}?force=1`, {
+            method: "DELETE"
+          });
+        } catch (forced) {
+          notice(tError(forced.code));
+        }
+      } else {
+        notice(tError(error.code));
+      }
+    }
+    dom.collectionDialog.close();
+    if (state.activeId === collection.id) state.activeId = null;
+    await refresh();
   }
 
   // -- flow -----------------------------------------------------------
 
   async function selectCollection(cid) {
     state.activeId = cid;
+    state.query = "";
+    dom.search.value = "";
     renderTabs();
     // A blank grid reads as broken; over a slow tunnel this is visible.
     renderEmpty("loading", null);
@@ -222,12 +640,60 @@
     try {
       const data = await api(`api/collections/${encodeURIComponent(cid)}/items`);
       if (state.activeId !== cid) return; // a faster tap won
-      state.items = data.items;
+      state.items = data.items.map((item) => ({ ...item, cid }));
     } catch (error) {
       state.items = [];
       notice(tError(error.code));
     }
     renderGrid();
+  }
+
+  // Anything that changed the library on disk lands here.
+  async function refresh() {
+    state.searchIndex = null;
+    let data;
+    try {
+      data = await api("api/library");
+    } catch (error) {
+      notice(tError(error.code));
+      return;
+    }
+    state.collections = data.collections;
+    state.maxUploadBytes = data.max_upload_bytes || state.maxUploadBytes;
+    dom.add.hidden = !state.collections.length;
+
+    if (!state.collections.length) {
+      state.activeId = null;
+      state.items = [];
+      renderTabs();
+      renderGrid();
+      return;
+    }
+    const stillThere = state.collections.some((c) => c.id === state.activeId);
+    const target = stillThere ? state.activeId : state.collections[0].id;
+    if (state.query.trim()) {
+      state.activeId = target;
+      renderTabs();
+      await runSearch();
+    } else {
+      await selectCollection(target);
+    }
+  }
+
+  function applyStaticText() {
+    document.title = t("app_title");
+    dom.search.placeholder = t("search_placeholder");
+    dom.search.setAttribute("aria-label", t("search_placeholder"));
+    dom.add.textContent = t("add");
+    dom.viewerClose.textContent = t("close");
+    dom.docCover.textContent = t("upload_cover");
+    dom.docDelete.textContent = t("delete");
+    dom.docCancel.textContent = t("cancel");
+    dom.collectionTitleLabel.textContent = t("collection_title");
+    dom.collectionIconLabel.textContent = t("collection_icon");
+    dom.collectionCancel.textContent = t("cancel");
+    dom.collectionSave.textContent = t("save");
+    dom.collectionDelete.textContent = t("delete_collection");
   }
 
   async function start() {
@@ -243,6 +709,8 @@
     setLanguage(data.language);
     applyStaticText();
     state.collections = data.collections;
+    state.maxUploadBytes = data.max_upload_bytes || state.maxUploadBytes;
+    dom.add.hidden = !state.collections.length;
     if (state.collections.length) {
       await selectCollection(state.collections[0].id);
     } else {
@@ -251,16 +719,53 @@
     }
   }
 
-  function applyStaticText() {
-    document.title = t("app_title");
-    dom.search.placeholder = t("search_placeholder");
-    dom.search.setAttribute("aria-label", t("search_placeholder"));
-  }
+  // -- wiring ---------------------------------------------------------
 
   dom.search.addEventListener("input", (event) => {
     state.query = event.target.value;
-    renderGrid();
+    runSearch();
   });
+
+  dom.add.addEventListener("click", () => dom.fileInput.click());
+  dom.fileInput.addEventListener("change", async (event) => {
+    const files = [...event.target.files];
+    event.target.value = ""; // so the same file can be picked twice
+    if (files.length) await uploadFiles(files);
+  });
+
+  dom.viewerClose.addEventListener("click", closeViewer);
+  // Esc closes the dialog on its own, so the tidying up belongs here.
+  dom.viewer.addEventListener("close", () => {
+    rememberPage();
+    window.clearInterval(state.pageTimer);
+    state.pageTimer = null;
+    state.viewing = null;
+    // Drop the document so the pdf.js worker stops holding it in memory.
+    dom.viewerFrame.src = "about:blank";
+  });
+
+  dom.docCancel.addEventListener("click", () => dom.docMenu.close());
+  dom.docCover.addEventListener("click", () => {
+    dom.docMenu.close();
+    dom.coverInput.click();
+  });
+  dom.docDelete.addEventListener("click", async () => {
+    const entry = state.menuItem;
+    dom.docMenu.close();
+    if (entry) await deleteDocument(entry);
+  });
+  dom.coverInput.addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (file && state.menuItem) await uploadCover(state.menuItem, file);
+  });
+
+  dom.collectionForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitCollection();
+  });
+  dom.collectionCancel.addEventListener("click", () => dom.collectionDialog.close());
+  dom.collectionDelete.addEventListener("click", deleteCollection);
 
   start();
 })();

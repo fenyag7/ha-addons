@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +34,20 @@ CID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 
 # Anything that could climb out of a folder, plus the control range.
 FORBIDDEN_IN_NAME = re.compile(r"[/\\\x00-\x1f\x7f]")
+
+# An mdi name as the frontend spells it, without the "mdi:" prefix.
+ICON_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+
+# Russian only, which is the alphabet this add-on has to deal with. Titles
+# in any other script simply lose those characters and fall back to a
+# generated id, which is still addressable.
+TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+}
 
 DEFAULT_COLLECTIONS = {
     "en": [
@@ -284,3 +299,137 @@ class Library:
 
     def exists(self, cid: str) -> bool:
         return self.collection_dir(cid).is_dir()
+
+    # -- writing --------------------------------------------------------
+
+    def taken_ids(self) -> set:
+        ids = self._dirs_on_disk()
+        for entry in self.read_manifest()["collections"]:
+            if isinstance(entry, dict) and entry.get("id"):
+                ids.add(entry["id"])
+        return ids
+
+    def unique_cid(self, title: str) -> str:
+        base = slugify(title)
+        taken = self.taken_ids()
+        if base not in taken:
+            return base
+        for suffix in range(2, 1000):
+            candidate = f"{base[: 40 - len(str(suffix)) - 1]}-{suffix}"
+            if candidate not in taken:
+                return candidate
+        raise LibraryError("collection_exists", title, 409)
+
+    def create_collection(self, title: str, icon: str) -> dict:
+        title = (title or "").strip()
+        if not title:
+            raise LibraryError("title_required", "", 400)
+        cid = self.unique_cid(title)
+        self.make_collection_dirs(cid)
+        collections = self.read_manifest()["collections"]
+        entry = {"id": cid, "title": title, "icon": validate_icon(icon)}
+        collections.append(entry)
+        self.write_manifest(collections)
+        return entry
+
+    def update_collection(self, cid: str, title=None, icon=None) -> dict:
+        validate_cid(cid)
+        if not self.exists(cid):
+            raise LibraryError("collection_not_found", cid, 404)
+        collections = self.read_manifest()["collections"]
+        entry = next(
+            (c for c in collections if isinstance(c, dict) and c.get("id") == cid), None
+        )
+        if entry is None:
+            # Picked up from disk and never named; give it a manifest row now.
+            entry = {"id": cid, "title": cid, "icon": FALLBACK_ICON}
+            collections.append(entry)
+        if title is not None:
+            title = title.strip()
+            if not title:
+                raise LibraryError("title_required", cid, 400)
+            entry["title"] = title
+        if icon is not None:
+            entry["icon"] = validate_icon(icon)
+        self.write_manifest(collections)
+        return entry
+
+    def delete_collection(self, cid: str, force: bool = False) -> None:
+        validate_cid(cid)
+        base = self.collection_dir(cid)
+        if not base.is_dir():
+            raise LibraryError("collection_not_found", cid, 404)
+        if not force and self.count(cid):
+            raise LibraryError("collection_not_empty", cid, 409)
+        shutil.rmtree(base)
+        collections = [
+            c
+            for c in self.read_manifest()["collections"]
+            if not (isinstance(c, dict) and c.get("id") == cid)
+        ]
+        self.write_manifest(collections)
+
+    def delete_item(self, cid: str, file_name: str) -> None:
+        """Remove the document and whatever cover was standing in for it."""
+        path = self.doc_path(cid, file_name)
+        if not path.is_file():
+            raise LibraryError("not_found", file_name, 404)
+        path.unlink()
+        self.drop_covers(cid, path.name[: -len(DOC_EXTENSION)])
+
+    def drop_covers(self, cid: str, stem: str) -> None:
+        existing = self._cover_index(cid).get(stem.casefold())
+        if existing:
+            self.cover_path(cid, existing).unlink(missing_ok=True)
+
+    def temp_path(self, target: Path) -> Path:
+        """A sibling of the target, so the final os.replace stays on one device."""
+        return target.with_name(f".{target.name}.part")
+
+
+def validate_icon(icon: str) -> str:
+    icon = (icon or "").strip() or FALLBACK_ICON
+    if not ICON_RE.match(icon):
+        raise LibraryError("bad_icon", icon, 400)
+    return icon
+
+
+def slugify(title: str) -> str:
+    """Fold a human title down to something usable as a folder and a URL."""
+    text = unicodedata.normalize("NFKD", (title or "").strip().lower())
+    out = []
+    for char in text:
+        if char in TRANSLIT:
+            out.append(TRANSLIT[char])
+        elif char.isascii() and char.isalnum():
+            out.append(char)
+        elif char in " -_./":
+            out.append("-")
+        # Anything else, combining accents included, is dropped.
+    slug = re.sub(r"-+", "-", "".join(out)).strip("-")[:40].strip("-")
+    if not slug:
+        return "collection"
+    if not slug[0].isalnum():
+        slug = slug.lstrip("-_")[:40] or "collection"
+    return slug
+
+
+def sniff_pdf(head: bytes) -> bool:
+    return head.startswith(b"%PDF-")
+
+
+def sniff_image(head: bytes):
+    """Return the canonical extension for a cover, or None if unrecognised.
+
+    The extension is taken from the bytes, never from the uploaded name, so
+    a PNG cannot end up stored as .jpg and served with the wrong type.
+    """
+    if head.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return ".webp"
+    if head[4:8] == b"ftyp" and (b"avif" in head[8:32] or b"avis" in head[8:32]):
+        return ".avif"
+    return None
