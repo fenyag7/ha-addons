@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- The interface follows Home Assistant's shapes and palette: its card
+  geometry (12px corners, a 1px divider border, no shadow), its light and
+  dark backgrounds, its type. The amber accent and the serif titles stay.
+
 ## 0.7.0
 
 - Documents can be renamed from the document menu. The cover is renamed
