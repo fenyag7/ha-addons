@@ -73,12 +73,30 @@ async def error_middleware(request: web.Request, handler):
         )
 
 
+@web.middleware
+async def cache_middleware(request: web.Request, handler):
+    """Everything revalidates; nothing is trusted stale.
+
+    Without a Cache-Control header the iOS webview caches by heuristic and
+    may serve yesterday's app.js without asking, which means an updated
+    add-on can keep running last version's frontend against this version's
+    server. no-cache still allows caching -- ETag and Last-Modified make
+    the revalidation a 304 -- it only forbids skipping the question.
+    """
+    response = await handler(request)
+    response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 async def api_library(request: web.Request) -> web.Response:
     library = request.app[LIBRARY_KEY]
     return web.json_response(
         {
             "language": library.language,
             "max_upload_bytes": request.app[MAX_UPLOAD_KEY],
+            # For "which frontend is this webview actually running" moments:
+            # the served version is visible in the network tab and in logs.
+            "version": os.environ.get("ADDON_VERSION", "dev"),
             "collections": library.collections(),
         }
     )
@@ -273,7 +291,7 @@ async def index(request: web.Request) -> web.FileResponse:
 
 def build_app(library: Library, max_upload_bytes: int) -> web.Application:
     app = web.Application(
-        middlewares=[error_middleware],
+        middlewares=[error_middleware, cache_middleware],
         client_max_size=max_upload_bytes + MULTIPART_SLACK,
     )
     app[LIBRARY_KEY] = library

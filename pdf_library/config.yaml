@@ -1,6 +1,6 @@
 ---
 name: PDF Library
-version: "0.6.1"
+version: "0.6.2"
 slug: pdf_library
 description: Store and read PDF documents inside Home Assistant
 url: https://github.com/fenyag7/ha-addons/tree/main/pdf_library

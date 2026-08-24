@@ -7,8 +7,9 @@ LIBRARY_ROOT="$(bashio::config 'library_root')"
 MAX_UPLOAD_MB="$(bashio::config 'max_upload_mb')"
 UI_LANGUAGE="$(bashio::config 'language')"
 LOG_LEVEL="$(bashio::config 'log_level')"
-export LIBRARY_ROOT MAX_UPLOAD_MB UI_LANGUAGE LOG_LEVEL
+ADDON_VERSION="$(bashio::addon.version 2>/dev/null || echo 'unknown')"
+export LIBRARY_ROOT MAX_UPLOAD_MB UI_LANGUAGE LOG_LEVEL ADDON_VERSION
 export PDFJS_ROOT="/opt/pdfjs"
 
-bashio::log.info "Library root: ${LIBRARY_ROOT}"
+bashio::log.info "PDF Library ${ADDON_VERSION}, library root: ${LIBRARY_ROOT}"
 exec python3 /opt/app/server.py

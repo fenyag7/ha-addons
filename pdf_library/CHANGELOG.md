@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+- Every response now carries `Cache-Control: no-cache`. Without it the iOS
+  webview was allowed to keep serving the previous version's `app.js` from
+  its cache after an update, so the 0.6.1 viewer fix never reached the
+  screen. Revalidation is a 304, so nothing gets slower.
+- The add-on logs its version at startup, and `GET /api/library` reports
+  it, so what is actually running is no longer a guess.
+
 ## 0.6.1
 
 - Fixed the viewer answering `400: Bad Request` instead of opening a
