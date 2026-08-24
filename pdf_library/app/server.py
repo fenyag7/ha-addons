@@ -289,8 +289,19 @@ def build_app(library: Library, max_upload_bytes: int) -> web.Application:
     app.router.add_put("/api/collections/{cid}/items/{name}/cover", api_upload_cover)
     app.router.add_get("/docs/{cid}/{name}", serve_doc)
     app.router.add_get("/covers/{cid}/{name}", serve_cover)
+    # The same documents, mounted underneath the viewer's own folder.
+    #
+    # Home Assistant runs a security filter in front of ingress. It unquotes
+    # the URL repeatedly until the result stops changing and then rejects
+    # anything matching ../ with a bare 400, so no amount of encoding gets a
+    # "../" past it. pdf.js takes the document as a URL relative to
+    # viewer.html, which lives at pdfjs/web/ -- reaching the real /docs from
+    # there would mean climbing two levels. Serving them here as well means
+    # the viewer only ever points downwards: file=docs/<cid>/<name>.
+    app.router.add_get("/pdfjs/web/docs/{cid}/{name}", serve_doc)
     app.router.add_get("/", index)
     if PDFJS_ROOT.is_dir():
+        # Registered after the route above, which would otherwise be shadowed.
         app.router.add_static("/pdfjs/", PDFJS_ROOT)
     else:
         _LOGGER.error("pdf.js is missing from %s; the viewer will not open", PDFJS_ROOT)

@@ -79,12 +79,17 @@ def validate_cid(cid: str) -> str:
     return cid
 
 
+def is_safe_name(name: str) -> bool:
+    name = unicodedata.normalize("NFC", name or "")
+    if not name or name in (".", ".."):
+        return False
+    return ".." not in name and not FORBIDDEN_IN_NAME.search(name)
+
+
 def validate_name(name: str) -> str:
     """Validate a file name coming from a URL or an upload."""
     name = unicodedata.normalize("NFC", name or "")
-    if not name or name in (".", ".."):
-        raise LibraryError("bad_file_name", name, 400)
-    if ".." in name or FORBIDDEN_IN_NAME.search(name):
+    if not is_safe_name(name):
         raise LibraryError("bad_file_name", name, 400)
     return name
 
@@ -255,6 +260,9 @@ class Library:
             for entry in entries
             if _visible(entry)
             and entry.name.lower().endswith(DOC_EXTENSION)
+            # A name the server would refuse to serve has no business being
+            # on a tile that cannot be opened.
+            and is_safe_name(entry.name)
             and entry.is_file()
         ]
 

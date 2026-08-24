@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+- Fixed the viewer answering `400: Bad Request` instead of opening a
+  document. Home Assistant runs a security filter in front of ingress that
+  unquotes a URL until it stops changing and rejects anything holding a
+  `../`, so the link to the document could not climb out of the viewer's
+  folder however it was encoded. Documents are now also served underneath
+  that folder, and the link only points downwards.
+- Documents whose names the add-on would refuse to serve are no longer
+  listed, rather than appearing as a tile that cannot be opened.
+
 ## 0.6.0
 
 - Search covers the whole library, and results say which collection a

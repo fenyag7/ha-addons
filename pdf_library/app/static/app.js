@@ -417,12 +417,17 @@
     }
   }
 
-  // Every hop stays relative. viewer.html sits two levels down, so ../../
-  // climbs back to the add-on root whatever prefix ingress happens to use.
+  // The path points down, never up. Home Assistant's security filter sits in
+  // front of ingress, unquotes the URL until it stops changing and rejects
+  // anything holding a "../" with a bare 400 -- so climbing out of pdfjs/web/
+  // to reach /docs is not an option, however it is encoded. The server serves
+  // the documents under the viewer's folder as well, which makes this a plain
+  // downward path.
+  //
   // The inner encoding turns the path into a valid URL; the outer one turns
   // that URL into a valid query value, and pdf.js undoes exactly one layer.
   function viewerUrl(cid, file) {
-    const target = `../../docs/${encodeURIComponent(cid)}/${encodeURIComponent(file)}`;
+    const target = `docs/${encodeURIComponent(cid)}/${encodeURIComponent(file)}`;
     const page = remembered(cid, file);
     const hash = page ? `#page=${page}&zoom=page-width` : "#zoom=page-width";
     return `pdfjs/web/viewer.html?file=${encodeURIComponent(target)}${hash}`;
