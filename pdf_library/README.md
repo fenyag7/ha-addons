@@ -12,4 +12,5 @@ See [DOCS.md](DOCS.md) for options and folder layout.
 
 ## License
 
-MIT.
+MIT. Bundles [pdf.js](https://github.com/mozilla/pdf.js) and a handful of
+[Material Design Icons](https://pictogrammers.com/library/mdi/), both Apache-2.0.

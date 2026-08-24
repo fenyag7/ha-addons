@@ -5,16 +5,19 @@
 <base href="./">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>PDF Library</title>
+<title>Library</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="shell">
-  <h1>PDF Library</h1>
-  <p class="muted" id="stage">Stage 1 — ingress skeleton.</p>
-  <button type="button" id="ping">Ping the add-on</button>
-  <output id="result" class="result"></output>
-</main>
+<header class="topbar">
+  <div class="toolbar">
+    <input id="search" class="search" type="search" autocomplete="off" spellcheck="false">
+  </div>
+  <nav id="tabs" class="tabs"></nav>
+</header>
+<p id="notice" class="notice" role="status" hidden></p>
+<main id="grid" class="grid"></main>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
