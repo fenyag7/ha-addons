@@ -1,0 +1,8 @@
+# Working spec, not part of the published repository
+PLAN.md
+
+# Local development
+.venv/
+__pycache__/
+*.pyc
+.devlib/

@@ -1,0 +1,17 @@
+---
+configuration:
+  library_root:
+    name: Library folder
+    description: >-
+      Where documents are stored. Reachable over Samba for bulk import.
+  max_upload_mb:
+    name: Maximum upload size (MB)
+    description: Uploads larger than this are rejected.
+  language:
+    name: Interface language
+    description: "auto — follow the browser language."
+  log_level:
+    name: Log level
+    description: >-
+      How much detail ends up in the add-on log. Use debug when reporting
+      a problem.
