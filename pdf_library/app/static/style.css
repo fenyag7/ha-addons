@@ -516,3 +516,32 @@ body {
   /* The viewer draws its own chrome; the inset only applies to the bar. */
   margin-bottom: env(safe-area-inset-bottom);
 }
+
+/* -- drag and drop ------------------------------------------------- */
+
+/* Only ever on screen while something is being dragged over the window,
+   so it can cover everything without being in the way. */
+.dropzone {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.dropzone-text {
+  margin: 0;
+  padding: 2rem 2.5rem;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  text-align: center;
+}

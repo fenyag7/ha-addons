@@ -9,9 +9,12 @@ is here is path validation: ingress vouches for the caller, not for the
 shape of the file names they send.
 """
 
+import asyncio
+import contextlib
 import logging
 import mimetypes
 import os
+import shutil
 from pathlib import Path
 
 from aiohttp import web
@@ -51,6 +54,9 @@ _LOGGER = logging.getLogger("pdf_library")
 # module served as application/octet-stream, and the Python that ends up in
 # the image is not guaranteed to know this extension.
 mimetypes.add_type("text/javascript", ".mjs")
+# Same story for the WebAssembly the viewer uses to decode JPEG2000 and
+# JBIG2 images: instantiateStreaming refuses anything but application/wasm.
+mimetypes.add_type("application/wasm", ".wasm")
 
 LIBRARY_KEY = web.AppKey("library", Library)
 MAX_UPLOAD_KEY = web.AppKey("max_upload_bytes", int)
@@ -59,6 +65,88 @@ MAX_UPLOAD_KEY = web.AppKey("max_upload_bytes", int)
 # multipart boundaries. The real limit is enforced per part, with a message.
 MULTIPART_SLACK = 8 * 1024 * 1024
 CHUNK = 64 * 1024
+
+SAMPLE_DOC = APP_DIR / "sample" / "PDF Library Quick Start.pdf"
+
+# Cover rendering. pdftoppm comes from poppler-utils, a prebuilt Alpine
+# package, so nothing is compiled on the device.
+COVER_TOOL = "pdftoppm"
+COVER_WIDTH = 640
+COVER_TIMEOUT = 30
+# A Pi has better things to do than render thumbnails; the sweep that picks
+# up files dropped in over Samba breathes between documents.
+SWEEP_PAUSE = 1.0
+
+AUTO_COVER_KEY = web.AppKey("auto_cover", bool)
+SWEEP_KEY = web.AppKey("cover_sweep", asyncio.Task)
+
+
+async def render_cover(library: Library, cid: str, file_name: str) -> str:
+    """Render page one of a document into its cover, or return "".
+
+    Never raises: a cover is a nicety, and a document that will not render
+    must not take an upload or a startup down with it.
+    """
+    if shutil.which(COVER_TOOL) is None:
+        return ""
+    source = library.doc_path(cid, file_name)
+    stem = source.name[: -len(DOC_EXTENSION)]
+    covers = library.collection_dir(cid) / COVERS_DIR
+    covers.mkdir(parents=True, exist_ok=True)
+    prefix = covers / f".{stem}.render"
+    produced = prefix.with_name(prefix.name + ".jpg")
+    try:
+        process = await asyncio.create_subprocess_exec(
+            COVER_TOOL, "-jpeg", "-jpegopt", "quality=82",
+            "-f", "1", "-l", "1", "-scale-to", str(COVER_WIDTH), "-singlefile",
+            str(source), str(prefix),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            _, stderr = await asyncio.wait_for(process.communicate(), COVER_TIMEOUT)
+        except asyncio.TimeoutError:
+            process.kill()
+            _LOGGER.warning("Cover render timed out for %s/%s", cid, file_name)
+            return ""
+        if process.returncode != 0 or not produced.is_file():
+            _LOGGER.debug(
+                "Cover render failed for %s/%s: %s",
+                cid, file_name, (stderr or b"").decode("utf-8", "replace")[:200],
+            )
+            return ""
+        target = library.cover_path(cid, stem + ".jpg")
+        os.replace(produced, target)
+        _LOGGER.debug("Rendered cover for %s/%s", cid, file_name)
+        return target.name
+    except (OSError, ValueError, LibraryError) as err:
+        _LOGGER.debug("Cover render error for %s/%s: %s", cid, file_name, err)
+        return ""
+    finally:
+        produced.unlink(missing_ok=True)
+
+
+async def sweep_covers(app: web.Application) -> None:
+    """Give a cover to anything that arrived without one, e.g. over Samba."""
+    library = app[LIBRARY_KEY]
+    if not app[AUTO_COVER_KEY]:
+        return
+    if shutil.which(COVER_TOOL) is None:
+        _LOGGER.warning("%s is not installed; covers will not be generated", COVER_TOOL)
+        return
+    try:
+        missing = library.coverless()
+        if not missing:
+            return
+        _LOGGER.info("Rendering covers for %d document(s)", len(missing))
+        for cid, file_name in missing:
+            await render_cover(library, cid, file_name)
+            await asyncio.sleep(SWEEP_PAUSE)
+        _LOGGER.info("Cover rendering finished")
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 - a background nicety, never fatal
+        _LOGGER.exception("Cover sweep stopped early")
 
 
 @web.middleware
@@ -218,6 +306,8 @@ async def api_upload(request: web.Request) -> web.Response:
     if stored is None:
         raise LibraryError("file_required", "", 400)
     _LOGGER.info("Stored %s/%s", cid, stored["file"])
+    if stored["cover"] is None and request.app[AUTO_COVER_KEY]:
+        stored["cover"] = await render_cover(library, cid, stored["file"]) or None
     return web.json_response(stored, status=201)
 
 
@@ -299,13 +389,29 @@ async def index(request: web.Request) -> web.FileResponse:
     return web.FileResponse(STATIC_DIR / "index.html")
 
 
-def build_app(library: Library, max_upload_bytes: int) -> web.Application:
+def build_app(
+    library: Library, max_upload_bytes: int, auto_cover: bool = True
+) -> web.Application:
     app = web.Application(
         middlewares=[error_middleware, cache_middleware],
         client_max_size=max_upload_bytes + MULTIPART_SLACK,
     )
     app[LIBRARY_KEY] = library
     app[MAX_UPLOAD_KEY] = max_upload_bytes
+    app[AUTO_COVER_KEY] = auto_cover
+
+    async def start_sweep(running: web.Application) -> None:
+        running[SWEEP_KEY] = asyncio.create_task(sweep_covers(running))
+
+    async def stop_sweep(running: web.Application) -> None:
+        task = running.get(SWEEP_KEY)
+        if task and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    app.on_startup.append(start_sweep)
+    app.on_cleanup.append(stop_sweep)
 
     app.router.add_get("/api/library", api_library)
     app.router.add_post("/api/collections", api_create_collection)
@@ -355,13 +461,15 @@ def main() -> None:
         language=os.environ.get("UI_LANGUAGE", "auto"),
     )
     library.ensure_layout()
+    library.install_sample(SAMPLE_DOC)
     _LOGGER.info("Serving %s", library.root)
 
     try:
         max_upload_mb = int(os.environ.get("MAX_UPLOAD_MB", "100"))
     except ValueError:
         max_upload_mb = 100
-    app = build_app(library, max_upload_mb * 1024 * 1024)
+    auto_cover = os.environ.get("AUTO_COVER", "true").lower() not in ("false", "0", "no")
+    app = build_app(library, max_upload_mb * 1024 * 1024, auto_cover)
 
     # Local development aid: serve the app under a nested path so that any
     # absolute URL in the frontend breaks here rather than on a real ingress.

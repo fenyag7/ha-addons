@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.0
+
+- Documents without a cover get one rendered from their first page, both on
+  upload and, for files that arrived over Samba, on startup. `auto_cover`
+  turns it off. This adds poppler-utils to the image.
+- PDF files can be dragged onto the window on a computer.
+- A short quick-start document is placed in Manuals on a new library. It
+  also serves as a control for the reader's search: it has a text layer, so
+  if searching it finds nothing, the reader is at fault rather than the file.
+- Corrected the anchor of pinch zoom in the reader. pdf.js passes the pinch
+  point in screen coordinates but subtracts a layout offset from it, so the
+  zoom pulled towards a point below the fingers by the height of everything
+  above the frame. The mouse wheel path passes client coordinates and was
+  always right.
+- WebAssembly is served as `application/wasm`, without which the reader
+  cannot decode JPEG2000 or JBIG2 images.
+
 ## 0.7.1
 
 - The interface follows Home Assistant's shapes and palette: its card

@@ -62,6 +62,10 @@ DEFAULT_COLLECTIONS = {
 
 FALLBACK_ICON = "folder-outline"
 
+# Manifest key recording that the bundled sample has been placed once.
+SAMPLE_FLAG = "sample_installed"
+SAMPLE_COLLECTION = "manuals"
+
 
 class LibraryError(Exception):
     """Raised with a machine-readable code the frontend can translate."""
@@ -166,8 +170,13 @@ class Library:
             return empty
         return data
 
-    def write_manifest(self, collections: list[dict]) -> None:
-        payload = {"version": MANIFEST_VERSION, "collections": collections}
+    def write_manifest(self, collections: list[dict], **extra) -> None:
+        # Whatever else the manifest carries is preserved: a key this
+        # version does not know about belongs to one that does.
+        payload = self.read_manifest()
+        payload["version"] = MANIFEST_VERSION
+        payload["collections"] = collections
+        payload.update(extra)
         tmp = self.manifest_path.with_name(MANIFEST_NAME + ".tmp")
         tmp.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -195,6 +204,46 @@ class Library:
         base = self.collection_dir(cid)
         (base / DOCS_DIR).mkdir(parents=True, exist_ok=True)
         (base / COVERS_DIR).mkdir(parents=True, exist_ok=True)
+
+    def install_sample(self, sample: Path) -> str:
+        """Drop the bundled quick-start document in, once and only once.
+
+        A brand new library with nothing in it teaches nobody anything. The
+        flag lives in the manifest rather than being a file check, so that
+        deleting the document does not bring it back.
+        """
+        manifest = self.read_manifest()
+        if manifest.get(SAMPLE_FLAG) or not sample.is_file():
+            return ""
+        collections = manifest["collections"]
+        target_id = None
+        for entry in collections:
+            if isinstance(entry, dict) and entry.get("id") == SAMPLE_COLLECTION:
+                target_id = SAMPLE_COLLECTION
+                break
+        if target_id is None:
+            available = sorted(self._dirs_on_disk())
+            target_id = available[0] if available else None
+        if target_id is None:
+            return ""
+
+        self.make_collection_dirs(target_id)
+        target = self.doc_path(target_id, sample.name)
+        if not target.exists():
+            shutil.copyfile(sample, target)
+        self.write_manifest(collections, **{SAMPLE_FLAG: True})
+        _LOGGER.info("Installed the sample document into %s", target_id)
+        return target_id
+
+    def coverless(self) -> list:
+        """Every document with no cover, as (cid, file name) pairs."""
+        missing = []
+        for collection in self.collections():
+            cid = collection["id"]
+            for item in self.items(cid):
+                if not item["cover"]:
+                    missing.append((cid, item["file"]))
+        return missing
 
     # -- reading --------------------------------------------------------
 

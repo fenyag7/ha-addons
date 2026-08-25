@@ -1,10 +1,12 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Only runtime dependency. py3-aiohttp lives in the Alpine community repo and
-# ships prebuilt for aarch64, so nothing is compiled on the target device.
+# The whole dependency list. py3-aiohttp is the server; poppler-utils is
+# there only for pdftoppm, which renders the first page of a document into
+# its cover. Both ship prebuilt for aarch64, so nothing is compiled on the
+# device. poppler and its libraries are the bulk of the image beyond Python.
 # hadolint ignore=DL3018
-RUN apk add --no-cache python3 py3-aiohttp
+RUN apk add --no-cache python3 py3-aiohttp poppler-utils
 
 # Bundled pdf.js viewer. "dist" is the build Mozilla ships for current
 # browsers and the one they actually test on; "legacy-dist" is the same

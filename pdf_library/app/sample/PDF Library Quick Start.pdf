@@ -1,0 +1,69 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 3143 >>
+stream
+BT
+/F2 24 Tf 1 0 0 1 64 768 Tm (PDF Library) Tj
+/F1 14 Tf 1 0 0 1 64 738 Tm (Quick start) Tj
+/F1 10.5 Tf 1 0 0 1 64 697 Tm (This add-on stores PDF documents inside Home Assistant and reads them in the browser. It was) Tj
+/F1 10.5 Tf 1 0 0 1 64 682 Tm (built for board game rules and appliance manuals: the things you need on a phone, at the table,) Tj
+/F1 10.5 Tf 1 0 0 1 64 667 Tm (without hunting through a shared drive.) Tj
+/F2 13 Tf 1 0 0 1 64 637 Tm (Collections) Tj
+/F1 10.5 Tf 1 0 0 1 64 615 Tm (Documents live in collections, shown as tabs across the top. A new install comes with two, Board) Tj
+/F1 10.5 Tf 1 0 0 1 64 600 Tm (games and Manuals. Use the plus button at the end of the tab row to add your own, and press and) Tj
+/F1 10.5 Tf 1 0 0 1 64 585 Tm (hold a tab to rename it, change its icon or delete it.) Tj
+/F2 13 Tf 1 0 0 1 64 555 Tm (Adding documents) Tj
+/F1 10.5 Tf 1 0 0 1 64 533 Tm (The Add button opens your device's own file picker, so on a phone you reach iCloud Drive and) Tj
+/F1 10.5 Tf 1 0 0 1 64 518 Tm (Downloads directly. On a computer you can also drag PDF files onto the window. Several files at) Tj
+/F1 10.5 Tf 1 0 0 1 64 503 Tm (once are uploaded one after another.) Tj
+/F1 10.5 Tf 1 0 0 1 64 488 Tm (For a large import, copy the files straight into the library folder over Samba. The add-on reads the) Tj
+/F1 10.5 Tf 1 0 0 1 64 473 Tm (file system on every request, so anything you drop in appears without a restart.) Tj
+/F2 13 Tf 1 0 0 1 64 443 Tm (Covers) Tj
+/F1 10.5 Tf 1 0 0 1 64 421 Tm (Each document shows a cover. If you do not supply one, the add-on renders the first page of the) Tj
+/F1 10.5 Tf 1 0 0 1 64 406 Tm (document and uses that. Press and hold a cover to set your own image, rename the document or) Tj
+/F1 10.5 Tf 1 0 0 1 64 391 Tm (delete it.) Tj
+/F2 13 Tf 1 0 0 1 64 361 Tm (Searching) Tj
+/F1 10.5 Tf 1 0 0 1 64 339 Tm (The search field matches document titles across the whole library, not only the collection you are) Tj
+/F1 10.5 Tf 1 0 0 1 64 324 Tm (looking at, and results tell you which collection each document belongs to. It does not search inside) Tj
+/F1 10.5 Tf 1 0 0 1 64 309 Tm (the documents.) Tj
+/F1 10.5 Tf 1 0 0 1 64 294 Tm (The reader has its own search, the magnifier in its toolbar, which does look inside the open) Tj
+/F1 10.5 Tf 1 0 0 1 64 279 Tm (document. Try it on this page: searching for the word collection should find several matches. If it) Tj
+/F1 10.5 Tf 1 0 0 1 64 264 Tm (finds nothing here, the reader is at fault. If it works here but not in your own document, that) Tj
+/F1 10.5 Tf 1 0 0 1 64 249 Tm (document has no text layer, and no reader can search it.) Tj
+/F2 13 Tf 1 0 0 1 64 219 Tm (Reading) Tj
+/F1 10.5 Tf 1 0 0 1 64 197 Tm (Tap a cover to open the document. It opens over the library rather than as a separate page, because) Tj
+/F1 10.5 Tf 1 0 0 1 64 182 Tm (inside the Home Assistant app there is no back button to return with. The page you stopped on is) Tj
+/F1 10.5 Tf 1 0 0 1 64 167 Tm (remembered, so a long set of rules reopens where you left it.) Tj
+/F1 10.5 Tf 1 0 0 1 64 137 Tm (Source and issues: github.com/fenyag7/ha-addons) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000212 00000 n 
+0000000314 00000 n 
+0000003509 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R /Info << /Title (PDF Library Quick Start) /Subject (How to use the PDF Library add-on for Home Assistant) >> >>
+startxref
+3645
+%%EOF

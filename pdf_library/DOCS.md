@@ -10,6 +10,7 @@ Home Assistant session is the only login involved.
 |---|---|---|
 | `library_root` | `/share/pdf_library` | Where documents are stored. |
 | `max_upload_mb` | `100` | Uploads larger than this are rejected. |
+| `auto_cover` | `true` | Render a cover from the first page of any document that has none. |
 | `language` | `auto` | `auto`, `en` or `ru`. `auto` follows the browser. |
 | `log_level` | `info` | `trace`, `debug`, `info`, `warning`, `error`. |
 
@@ -45,7 +46,8 @@ transliterated name automatically: `Настолки` becomes `nastolki`.
   remembered and restored the next time you open the same document.
 - **Add** documents with the button next to the search field. Several files
   at once are uploaded one after another, with progress for the current one.
-  A name that is already taken asks before replacing.
+  A name that is already taken asks before replacing. On a computer you can
+  also drag PDF files onto the window; they go into the open collection.
 - **Long-press a cover** for the document menu: set a cover image, or delete
   the document. Deleting a document deletes its cover too.
 - **Long-press a tab** to rename a collection, change its icon or delete it.
@@ -67,9 +69,15 @@ Covers uploaded through the interface are named after what the file actually
 contains rather than what it was called, so a PNG cannot end up stored as
 `.jpg`.
 
-Documents without a cover get a generated one: the title set in a serif face
-over a colour derived from the title itself, so the same document always
-looks the same.
+Documents without a cover get one rendered from their first page. That
+happens right after an upload, and on startup for anything that arrived
+another way, such as a Samba import. Rendering is one document at a time
+with a pause between, so it does not tie up a Raspberry Pi.
+
+Turn `auto_cover` off to keep the drawn placeholder instead: the title set
+in a serif face over a colour derived from the title itself, so the same
+document always looks the same. The placeholder is also what you get when a
+document fails to render.
 
 ## Bulk import over Samba
 
@@ -91,6 +99,16 @@ lower-case latin letters, digits, `-` or `_`.
 **An upload is rejected.** The add-on checks the first bytes of the file
 rather than its extension, so something renamed to `.pdf` that is not a PDF
 is refused. Files over `max_upload_mb` are refused as well.
+
+**The reader finds nothing when searching inside a document.** The reader's
+own search only sees a document's text layer. A PDF made of scanned pages,
+or one whose fonts carry no Unicode mapping, has nothing to search. Open the
+bundled *PDF Library Quick Start* and search it for `collection`: if that
+finds matches and your own document finds none, the difference is in the
+document, not in the add-on.
+
+**No covers are generated.** Check the log for a line about `pdftoppm` not
+being installed, and that `auto_cover` is on.
 
 **The viewer stays blank.** Check the log for a line about pdf.js missing
 from `/opt/pdfjs`, which means the image was built without it. Rebuilding

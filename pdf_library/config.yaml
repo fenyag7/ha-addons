@@ -1,6 +1,6 @@
 ---
 name: PDF Library
-version: "0.7.1"
+version: "0.8.0"
 slug: pdf_library
 description: Store and read PDF documents inside Home Assistant
 url: https://github.com/fenyag7/ha-addons/tree/main/pdf_library
@@ -19,10 +19,12 @@ map:
 options:
   library_root: /share/pdf_library
   max_upload_mb: 100
+  auto_cover: true
   language: auto
   log_level: info
 schema:
   library_root: str
   max_upload_mb: int(1,500)
+  auto_cover: bool
   language: list(auto|en|ru)
   log_level: list(trace|debug|info|warning|error)

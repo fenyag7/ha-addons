@@ -60,6 +60,8 @@
     viewerTitle: id("viewer-title"),
     viewerClose: id("viewer-close"),
     viewerFrame: id("viewer-frame"),
+    dropzone: id("dropzone"),
+    dropzoneText: id("dropzone-text"),
     docMenu: id("doc-menu"),
     docMenuTitle: id("doc-menu-title"),
     docRename: id("doc-rename"),
@@ -434,6 +436,61 @@
     return `pdfjs/web/viewer.html?file=${encodeURIComponent(target)}${hash}`;
   }
 
+  // pdf.js hands the pinch anchor to the viewer in screen coordinates while
+  // the viewer subtracts the container's layout offset from it -- two
+  // different coordinate spaces. The wheel path passes clientX/clientY and
+  // is correct, which is what makes this a bug rather than a convention.
+  // The error is the distance from the top of the screen to the top of this
+  // frame: the status bar, the Home Assistant header and our own bar. That
+  // is exactly what a touch tells us, by reporting both spaces at once.
+  //
+  // Everything here is optional. If pdf.js changes shape, the checks fail
+  // and the viewer keeps its own behaviour rather than breaking.
+  function correctPinchOrigin(frameWindow) {
+    try {
+      const viewerApp = frameWindow.PDFViewerApplication;
+      if (!viewerApp || typeof viewerApp.touchPinchCallback !== "function") return;
+      if (viewerApp.pinchOriginCorrected) return;
+
+      const offset = { x: 0, y: 0 };
+      frameWindow.document.addEventListener(
+        "touchstart",
+        (event) => {
+          const touch = event.touches[0];
+          if (!touch) return;
+          offset.x = touch.screenX - touch.clientX;
+          offset.y = touch.screenY - touch.clientY;
+        },
+        { capture: true, passive: true }
+      );
+
+      const original = viewerApp.touchPinchCallback.bind(viewerApp);
+      viewerApp.touchPinchCallback = (origin, previous, distance) => {
+        const corrected = Array.isArray(origin)
+          ? [origin[0] - offset.x, origin[1] - offset.y]
+          : origin;
+        original(corrected, previous, distance);
+      };
+      viewerApp.pinchOriginCorrected = true;
+    } catch (error) {
+      // A viewer we cannot reach into is a viewer we leave alone.
+    }
+  }
+
+  function onViewerLoaded() {
+    let frameWindow;
+    try {
+      frameWindow = dom.viewerFrame.contentWindow;
+    } catch (error) {
+      return;
+    }
+    const viewerApp = frameWindow && frameWindow.PDFViewerApplication;
+    if (!viewerApp) return; // about:blank, or not the viewer
+    Promise.resolve(viewerApp.initializedPromise)
+      .then(() => correctPinchOrigin(frameWindow))
+      .catch(() => {});
+  }
+
   function openViewer(entry) {
     state.viewing = { cid: entry.cid, file: entry.file };
     dom.viewerTitle.textContent = entry.name;
@@ -706,6 +763,7 @@
     dom.search.setAttribute("aria-label", t("search_placeholder"));
     dom.add.textContent = t("add");
     dom.viewerClose.textContent = t("close");
+    dom.dropzoneText.textContent = t("drop_here");
     dom.docRename.textContent = t("rename");
     dom.docCover.textContent = t("upload_cover");
     dom.docDelete.textContent = t("delete");
@@ -754,6 +812,55 @@
     if (files.length) await uploadFiles(files);
   });
 
+  // Dragging files onto the window is the desktop counterpart of the Add
+  // button. dragenter and dragleave fire for every element crossed, so the
+  // overlay is driven by a depth counter rather than by the last event.
+  let dragDepth = 0;
+
+  const showDropzone = (shown) => {
+    dom.dropzone.hidden = !shown;
+  };
+
+  const draggingFiles = (event) =>
+    Array.from(event.dataTransfer?.types || []).includes("Files");
+
+  window.addEventListener("dragenter", (event) => {
+    if (!draggingFiles(event) || !state.activeId) return;
+    event.preventDefault();
+    dragDepth += 1;
+    showDropzone(true);
+  });
+
+  window.addEventListener("dragover", (event) => {
+    if (!draggingFiles(event) || !state.activeId) return;
+    // Without this the browser opens the file instead of handing it over.
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+
+  window.addEventListener("dragleave", (event) => {
+    if (!draggingFiles(event)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) showDropzone(false);
+  });
+
+  window.addEventListener("drop", async (event) => {
+    if (!draggingFiles(event)) return;
+    event.preventDefault();
+    dragDepth = 0;
+    showDropzone(false);
+    if (!state.activeId) return;
+    const files = Array.from(event.dataTransfer.files).filter(
+      (file) => file.type === "application/pdf" || /\.pdf$/i.test(file.name)
+    );
+    if (!files.length) {
+      notice(t("drop_nothing"));
+      return;
+    }
+    await uploadFiles(files);
+  });
+
+  dom.viewerFrame.addEventListener("load", onViewerLoaded);
   dom.viewerClose.addEventListener("click", closeViewer);
   // Esc closes the dialog on its own, so the tidying up belongs here.
   dom.viewer.addEventListener("close", () => {
