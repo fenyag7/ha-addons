@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.1
+
+- Fixed the add-on failing to start at all, with `unable to exec bashio`
+  repeating in the log. `run.sh` had been committed with CRLF endings, so
+  the kernel read the shebang as asking for an interpreter whose name ends
+  in a carriage return. Every tracked file is back to LF, `.gitattributes`
+  keeps it that way whatever platform edits them, and the checks refuse to
+  pass while a CR is present anywhere that ships.
+
 ## 0.8.0
 
 - Documents without a cover get one rendered from their first page, both on

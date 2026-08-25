@@ -1,0 +1,15 @@
+# This repository is built and run on Linux. A CRLF that reaches the image
+# is not cosmetic: a shell script whose shebang ends in \r makes the kernel
+# look for an interpreter whose name ends in \r, and the add-on dies at
+# startup with "unable to exec bashio". Normalise on the way in, check out
+# LF everywhere, whatever the developer's platform does.
+* text=auto eol=lf
+
+# Never touched.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
