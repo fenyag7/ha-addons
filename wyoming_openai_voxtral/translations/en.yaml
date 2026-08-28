@@ -1,0 +1,25 @@
+---
+configuration:
+  api_key:
+    name: Mistral API key
+    description: >-
+      Created at console.mistral.ai. Without it the add-on refuses to start.
+  stt_url:
+    name: API endpoint
+    description: >-
+      Any OpenAI-compatible transcription endpoint. Change this only to point
+      at something other than Mistral.
+  stt_model:
+    name: Model
+    description: >-
+      Transcription model to ask for, for example voxtral-mini-latest.
+  languages:
+    name: Languages
+    description: >-
+      Separated by spaces, not commas. Assist only offers this add-on for the
+      languages listed here.
+  log_level:
+    name: Log level
+    description: >-
+      How much detail ends up in the add-on log. Use debug when reporting
+      a problem.
