@@ -1,0 +1,24 @@
+---
+configuration:
+  api_key:
+    name: Ключ API Mistral
+    description: >-
+      Создаётся на console.mistral.ai. Без него аддон не запустится.
+  stt_url:
+    name: Адрес API
+    description: >-
+      Любая точка входа, совместимая с OpenAI. Менять только если нужен
+      не Mistral.
+  stt_model:
+    name: Модель
+    description: >-
+      Модель распознавания, например voxtral-mini-latest.
+  languages:
+    name: Языки
+    description: >-
+      Через пробел, не через запятую. Assist предложит этот аддон только
+      для перечисленных здесь языков.
+  log_level:
+    name: Уровень логирования
+    description: >-
+      Сколько подробностей попадает в лог аддона. При проблеме ставьте debug.

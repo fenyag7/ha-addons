@@ -1,0 +1,29 @@
+---
+name: Wyoming OpenAI (Voxtral)
+version: "0.1.0"
+slug: wyoming_openai_voxtral
+description: Speech-to-text for Assist through Mistral Voxtral
+url: https://github.com/fenyag7/ha-addons/tree/main/wyoming_openai_voxtral
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+boot: auto
+ports:
+  10300/tcp: 10300
+ports_description:
+  10300/tcp: Wyoming protocol
+watchdog: tcp://[HOST]:[PORT:10300]
+options:
+  api_key: ""
+  stt_url: https://api.mistral.ai/v1
+  stt_model: voxtral-mini-latest
+  languages: ru en
+  log_level: info
+schema:
+  api_key: password
+  stt_url: url
+  stt_model: str
+  languages: str
+  log_level: list(debug|info|warning|error)
