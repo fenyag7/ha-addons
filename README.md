@@ -13,7 +13,7 @@ https://github.com/fenyag7/ha-addons
 ## Add-ons
 
 - **[PDF Library](pdf_library)** — store and read PDF documents inside Home Assistant.
-- **[Wyoming OpenAI (Voxtral)](wyoming_openai_voxtral)** — speech-to-text for Assist through Mistral Voxtral.
+- **[Wyoming OpenAI](wyoming_openai)** — speech-to-text and text-to-speech for Assist through any OpenAI-compatible API.
 
 ## License
 
