@@ -1,0 +1,47 @@
+---
+name: Wyoming OpenAI
+version: "0.2.0"
+slug: wyoming_openai
+description: Speech-to-text and text-to-speech for Assist through any OpenAI-compatible API
+url: https://github.com/fenyag7/ha-addons/tree/main/wyoming_openai
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+boot: auto
+discovery:
+  - wyoming
+ports:
+  10300/tcp: 10300
+ports_description:
+  10300/tcp: Wyoming protocol
+watchdog: tcp://[HOST]:[PORT:10300]
+options:
+  api_key: ""
+  languages: ru en
+  stt_url: https://api.openai.com/v1
+  stt_model: gpt-4o-mini-transcribe
+  stt_mode: realtime
+  tts_url: https://api.openai.com/v1
+  tts_api_key: ""
+  tts_model: gpt-4o-mini-tts
+  tts_voices: ""
+  tts_streaming: true
+  tts_speed: 1.0
+  tts_instructions: ""
+  log_level: info
+schema:
+  api_key: password
+  languages: str
+  stt_url: url
+  stt_model: str?
+  stt_mode: list(batch|streaming|realtime)
+  tts_url: url
+  tts_api_key: password?
+  tts_model: str?
+  tts_voices: str?
+  tts_streaming: bool
+  tts_speed: float(0.25,4.0)
+  tts_instructions: str?
+  log_level: list(debug|info|warning|error)

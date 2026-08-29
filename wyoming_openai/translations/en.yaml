@@ -1,0 +1,72 @@
+---
+configuration:
+  api_key:
+    name: API key
+    description: >-
+      Used for both directions unless a separate text-to-speech key is set
+      below. A local server that wants no key can leave this empty.
+  languages:
+    name: Languages
+    description: >-
+      Separated by spaces, not commas. Assist only offers this add-on for the
+      languages listed here.
+  stt_url:
+    name: Speech-to-text endpoint
+    description: >-
+      Any OpenAI-compatible transcription endpoint, for example
+      https://api.openai.com/v1 or https://api.mistral.ai/v1.
+  stt_model:
+    name: Speech-to-text model
+    description: >-
+      Model to transcribe with, for example gpt-4o-mini-transcribe. Leave
+      empty to turn speech-to-text off and run as a voice only.
+  stt_mode:
+    name: Speech-to-text mode
+    description: >-
+      batch sends the finished recording in one request and works everywhere.
+      streaming asks the same endpoint to stream the transcript back. realtime
+      opens a WebSocket and needs OpenAI — see the documentation.
+  tts_url:
+    name: Text-to-speech endpoint
+    description: >-
+      Any OpenAI-compatible speech endpoint. Mistral has none, so this has to
+      point somewhere else than the speech-to-text endpoint when Voxtral is
+      listening.
+  tts_api_key:
+    name: Text-to-speech API key
+    description: >-
+      Only needed when speaking and listening use different providers. Empty
+      means the key above is used.
+  tts_model:
+    name: Text-to-speech model
+    description: >-
+      Model to speak with, for example gpt-4o-mini-tts. Leave empty to turn
+      text-to-speech off and run as an ear only.
+  tts_voices:
+    name: Voices
+    description: >-
+      Separated by spaces. Empty means every voice the endpoint offers, which
+      is usually what you want — the voice is picked per pipeline afterwards.
+  tts_streaming:
+    name: Stream the speech
+    description: >-
+      Synthesise sentence by sentence so playback starts before the reply has
+      been written to the end. Needs Home Assistant 2025.7 or newer; older
+      versions fall back to waiting for the whole reply.
+  tts_speed:
+    name: Speaking speed
+    description: >-
+      1.0 is the model's own pace. Between 0.25 and 4.0.
+  tts_instructions:
+    name: Voice instructions
+    description: >-
+      How the voice should sound, for example "speak calmly". Only
+      gpt-4o-mini-tts accepts this; other models answer with an error.
+  log_level:
+    name: Log level
+    description: >-
+      How much detail ends up in the add-on log. Use debug when reporting
+      a problem.
+network:
+  10300/tcp: Wyoming protocol. Home Assistant finds this by itself; the port is
+    published for clients outside Home Assistant.
